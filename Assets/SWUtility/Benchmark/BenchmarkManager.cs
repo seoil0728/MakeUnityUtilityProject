@@ -161,7 +161,13 @@ namespace SWUtility.Benchmark
 
         public void PrintCurrentResult()
         {
-            // TODO: 벤치마크 결과 출력 로직
+            if (PrintHandler == null)
+            {
+                Debug.LogWarning("PrintHandler is not set. Cannot print results.");
+                return;
+            }
+
+            PrintHandler.OnPrintResults(allResultData_);
         }
 
         public void SaveResultsToJson(string path)
