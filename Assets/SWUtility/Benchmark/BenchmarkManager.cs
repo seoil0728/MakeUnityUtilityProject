@@ -10,22 +10,22 @@ namespace SWUtility.Benchmark
     public class BenchmarkManager : MonoBehaviour
     {
         #region Singleton
-        private static BenchmarkManager instance;
+        private static BenchmarkManager instance_;
 
         public static BenchmarkManager Instance
         {
             get
             {
-                if (instance == null)
+                if (instance_ == null)
                 {
-                    instance = FindFirstObjectByType<BenchmarkManager>();
-                    if (instance == null)
+                    instance_ = FindFirstObjectByType<BenchmarkManager>();
+                    if (instance_ == null)
                     {
                         GameObject go = new GameObject("BenchmarkManager");
-                        instance = go.AddComponent<BenchmarkManager>();
+                        instance_ = go.AddComponent<BenchmarkManager>();
                     }
                 }
-                return instance;
+                return instance_;
             }
         }
         #endregion
@@ -215,13 +215,13 @@ namespace SWUtility.Benchmark
         #region Unity Event Functions
         private void Awake()
         {
-            if (instance != null && instance != this)
+            if (instance_ != null && instance_ != this)
             {
                 Destroy(gameObject);
                 return;
             }
 
-            instance = this;
+            instance_ = this;
             DontDestroyOnLoad(gameObject);
         }
 

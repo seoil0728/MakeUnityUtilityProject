@@ -9,6 +9,7 @@ namespace SWUtility.Benchmark
     public interface IBenchmarkMonitor
     {
         string MonitorName { get; }
+        bool Started { get; }
 
         /// <summary>
         /// 벤치마크 측정 시작 시 호출됩니다.
