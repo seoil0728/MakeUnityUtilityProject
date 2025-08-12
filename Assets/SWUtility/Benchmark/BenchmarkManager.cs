@@ -41,6 +41,10 @@ namespace SWUtility.Benchmark
         public IReadOnlyDictionary<string, Dictionary<string, string>> AllResultData => allResultData_;
 
         /// <summary>
+        /// Check Initialized
+        /// </summary>
+        public bool IsInitialized => isInitialized_;
+        /// <summary>
         /// 현재 벤치마크가 실행 중인지 여부를 나타냅니다.
         /// </summary>
         public bool IsBenchmarking => isBenchmarking_;
@@ -54,6 +58,7 @@ namespace SWUtility.Benchmark
 
         private readonly List<IBenchmarkMonitor> monitors_ = new List<IBenchmarkMonitor>();
 
+        private bool isInitialized_ = false;
         private bool isBenchmarking_ = false;
         #endregion
 
@@ -61,12 +66,12 @@ namespace SWUtility.Benchmark
         /// <summary>
         /// 실시간 데이터가 갱신될 때마다 호출되는 이벤트입니다.
         /// </summary>
-        public event Action<IReadOnlyDictionary<string, Dictionary<string, string>>> OnRealtimeDataUpdated;
+        public System.Action<IReadOnlyDictionary<string, Dictionary<string, string>>> OnRealtimeDataUpdated;
 
         /// <summary>
         /// 벤치마크가 종료되고 최종 결과가 집계되었을 때 호출되는 이벤트입니다.
         /// </summary>
-        public event Action<IReadOnlyDictionary<string, Dictionary<string, string>>> OnBenchmarkCompleted;
+        public System.Action<IReadOnlyDictionary<string, Dictionary<string, string>>> OnBenchmarkCompleted;
         #endregion
 
         #region Handlers
@@ -74,6 +79,15 @@ namespace SWUtility.Benchmark
         public IBenchmarkResultSaveLoadHandler SaveLoadHandler { get; set; }
         #endregion
 
+
+        public void Initialize()
+        {
+            if (isInitialized_)
+                return;
+
+            Debug.Log("[BenchmarkManager] Initialized");
+            isInitialized_ = true;
+        }
 
         /// <summary>
         /// 측정 모듈을 관리 리스트에 등록합니다.
@@ -115,6 +129,12 @@ namespace SWUtility.Benchmark
         [ContextMenu("Start Benchmark")]
         public void StartBenchmark()
         {
+            if (!isInitialized_)
+            {
+                Debug.LogError("BenchmarkManager is not initialized. Please call Initialize() first.");
+                return;
+            }
+
             if (isBenchmarking_)
             {
                 Debug.LogWarning("Benchmark is already running.");
@@ -138,6 +158,12 @@ namespace SWUtility.Benchmark
         [ContextMenu("Stop Benchmark")]
         public void StopBenchmark()
         {
+            if (!isInitialized_)
+            {
+                Debug.LogError("BenchmarkManager is not initialized. Please call Initialize() first.");
+                return;
+            }
+
             if (!isBenchmarking_)
             {
                 Debug.LogWarning("Benchmark is not running.");
@@ -231,6 +257,12 @@ namespace SWUtility.Benchmark
             if (!isBenchmarking_) return;
 
             UpdateBenchmark();
+        }
+
+        private void OnDestroy()
+        {
+            OnRealtimeDataUpdated = null;
+            OnBenchmarkCompleted = null;
         }
         #endregion
     }
