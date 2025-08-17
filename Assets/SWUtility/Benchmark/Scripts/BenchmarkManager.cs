@@ -29,6 +29,13 @@ namespace SWUtility.Benchmark
             }
         }
         #endregion
+        
+        #region Inspector
+        [Header("Benchmark Settings")]
+        [Tooltip("실시간 데이터 갱신 주기 (초 단위)")]
+        [SerializeField]
+        private float realtimeUpdateInterval = 1.0f;
+        #endregion
 
         #region Public Fields
         /// <summary>
@@ -58,6 +65,8 @@ namespace SWUtility.Benchmark
 
         private readonly List<IBenchmarkMonitor> monitors_ = new List<IBenchmarkMonitor>();
 
+        private float updateTimer_ = 0.0f;
+        
         private bool isInitialized_ = false;
         private bool isBenchmarking_ = false;
         #endregion
@@ -229,12 +238,21 @@ namespace SWUtility.Benchmark
             foreach (var monitor in monitors_)
             {
                 monitor.OnUpdateMonitor();
-
-                var realtimeData = monitor.GetRealtimeData();
-                allRealtimeData_[monitor.MonitorName] = realtimeData;
             }
 
-            OnRealtimeDataUpdated?.Invoke(allRealtimeData_);
+            updateTimer_ += Time.unscaledDeltaTime;
+
+            if (updateTimer_ >= realtimeUpdateInterval)
+            {
+                foreach (var monitor in monitors_)
+                {
+                    var realtimeData = monitor.GetRealtimeData();
+                    allRealtimeData_[monitor.MonitorName] = realtimeData;
+                }
+
+                OnRealtimeDataUpdated?.Invoke(allRealtimeData_);
+                updateTimer_ = 0.0f;
+            }
         }
 
 
