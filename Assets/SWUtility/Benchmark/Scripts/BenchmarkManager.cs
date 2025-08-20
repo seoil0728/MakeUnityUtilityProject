@@ -60,10 +60,10 @@ namespace SWUtility.Benchmark
 
         #region Private Fields
 
+        private BenchmarkMonitorController monitorController_ = null;
+
         private readonly Dictionary<string, Dictionary<string, string>> allRealtimeData_ = new Dictionary<string, Dictionary<string, string>>();
         private readonly Dictionary<string, Dictionary<string, string>> allResultData_ = new Dictionary<string, Dictionary<string, string>>();
-
-        private readonly List<IBenchmarkMonitor> monitors_ = new List<IBenchmarkMonitor>();
 
         private float updateTimer_ = 0.0f;
         
@@ -94,42 +94,18 @@ namespace SWUtility.Benchmark
             if (isInitialized_)
                 return;
 
+            monitorController_ = GetComponentInChildren<BenchmarkMonitorController>();
+
+            if (monitorController_ == null)
+            {
+                Debug.LogWarning("[BenchmarkManager] No Monitor Controller attached.");
+                return;
+            }
+            
+            monitorController_.Initialize();
+            
             Debug.Log("[BenchmarkManager] Initialized");
             isInitialized_ = true;
-        }
-
-        /// <summary>
-        /// 측정 모듈을 관리 리스트에 등록합니다.
-        /// </summary>
-        /// <param name="monitor">등록할 측정 모듈</param>
-        public void RegisterMonitor(IBenchmarkMonitor monitor)
-        {
-            if (!monitors_.Contains(monitor))
-            {
-                monitors_.Add(monitor);
-
-                allRealtimeData_[monitor.MonitorName] = new Dictionary<string, string>();
-                allResultData_[monitor.MonitorName] = new Dictionary<string, string>();
-
-                Debug.Log($"[BenchmarkManager] Monitor '{monitor.MonitorName}' registered.");
-            }
-        }
-
-        /// <summary>
-        /// 측정 모듈을 관리 리스트에서 제거합니다.
-        /// </summary>
-        /// <param name="monitor">제거할 측정 모듈</param>
-        public void UnregisterMonitor(IBenchmarkMonitor monitor)
-        {
-            if (monitors_.Contains(monitor))
-            {
-                monitors_.Remove(monitor);
-
-                allRealtimeData_.Remove(monitor.MonitorName);
-                allResultData_.Remove(monitor.MonitorName);
-
-                Debug.Log($"[BenchmarkManager] Monitor '{monitor.GetType().Name}' unregistered.");
-            }
         }
 
         /// <summary>
@@ -150,14 +126,15 @@ namespace SWUtility.Benchmark
                 return;
             }
 
-            foreach (var monitor in monitors_)
+            foreach (var monitor in monitorController_.Monitors)
             {
-                allRealtimeData_[monitor.MonitorName].Clear();
-                allResultData_[monitor.MonitorName].Clear();
-                monitor.OnStartMonitor();
+                allRealtimeData_[monitor.MonitorName] = new Dictionary<string, string>();
+                allResultData_[monitor.MonitorName] = new Dictionary<string, string>();
             }
+            
+            monitorController_.StartAllMonitors();
 
-            Debug.Log($"Benchmark started with {monitors_.Count} monitors.");
+            Debug.Log($"Benchmark started with {monitorController_.Monitors.Count} monitors.");
             isBenchmarking_ = true;
         }
 
@@ -178,11 +155,11 @@ namespace SWUtility.Benchmark
                 Debug.LogWarning("Benchmark is not running.");
                 return;
             }
+            
+            monitorController_.StopAllMonitors();
 
-            foreach (var monitor in monitors_)
+            foreach (var monitor in monitorController_.Monitors)
             {
-                monitor.OnStopMonitor();
-
                 var results = monitor.GetResultData();
                 allResultData_[monitor.MonitorName] = results;
             }
@@ -235,16 +212,13 @@ namespace SWUtility.Benchmark
         /// </summary>
         private void UpdateBenchmark()
         {
-            foreach (var monitor in monitors_)
-            {
-                monitor.OnUpdateMonitor();
-            }
+            monitorController_.UpdateAllMonitors();
 
             updateTimer_ += Time.unscaledDeltaTime;
 
             if (updateTimer_ >= realtimeUpdateInterval)
             {
-                foreach (var monitor in monitors_)
+                foreach (var monitor in monitorController_.Monitors)
                 {
                     var realtimeData = monitor.GetRealtimeData();
                     allRealtimeData_[monitor.MonitorName] = realtimeData;

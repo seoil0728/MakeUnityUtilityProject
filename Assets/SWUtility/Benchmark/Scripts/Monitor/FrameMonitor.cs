@@ -4,14 +4,10 @@ using System.Linq;
 
 namespace SWUtility.Benchmark
 {
-    public class FrameMonitor : MonoBehaviour, IBenchmarkMonitor
+    public class FrameMonitor : DeltaTimeMonitorBase
     {
-        public string MonitorName => "FPS & Frame Time Monitor";
-        public bool Started => started_;
+        public override string MonitorName => "FPS & Frame Time Monitor";
         
-        private List<float> deltaTimeList_ = new List<float>();
-        private Dictionary<string, string> realtimeData_ = new Dictionary<string, string>();
-
         #region Title String
         // Realtime Data Title
         private string realtimeData_FPS_ = "Current FPS";
@@ -26,61 +22,19 @@ namespace SWUtility.Benchmark
         private string resultData_FrameTime_Max_ = "Max Frame Time (ms)";
         private string resultData_FrameTime_Min_ = "Min Frame Time (ms)";
         #endregion
-
-        private bool started_ = false;
         
-        private void Initialize()
-        {
-            deltaTimeList_.Clear();
-            realtimeData_.Clear();
-        }
-
-        private void Register()
-        {
-            if (BenchmarkManager.Instance == null)
-                return;
-            
-            BenchmarkManager.Instance.RegisterMonitor(this);
-        }
-
-        private void UnRegister()
-        {
-            if (BenchmarkManager.Instance == null)
-                return;
-            
-            BenchmarkManager.Instance.UnregisterMonitor(this);
-        }
+        private Dictionary<string, string> realtimeData_ = new Dictionary<string, string>();
         
         
-        #region IBenchmarkMonitor implementation
+        #region DeltaTimeMonitorBase implementation
         
-        public void OnStartMonitor()
-        {
-            Initialize();
-            
-            started_ = true;
-        }
-
-        public void OnUpdateMonitor()
-        {
-            if (!started_)
-                return;
-            
-            deltaTimeList_.Add(Time.unscaledDeltaTime);
-        }
-
-        public void OnStopMonitor()
-        {
-            started_ = false;
-        }
-
-        public Dictionary<string, string> GetRealtimeData()
+        public override Dictionary<string, string> GetRealtimeData()
         {
             realtimeData_.Clear();
 
             var currentFrameTime = Time.unscaledDeltaTime;
-            var currentTotalFrameTime = deltaTimeList_.Sum();
-            var currentAverageFrameTime = currentTotalFrameTime / deltaTimeList_.Count;
+            var currentTotalFrameTime = TotalDeltaTime;
+            var currentAverageFrameTime = currentTotalFrameTime / DeltaTimeList.Count;
             
             var currentFPS = 1.0f / currentFrameTime;
             var currentAverageFPS = 1.0f / currentAverageFrameTime;
@@ -92,24 +46,24 @@ namespace SWUtility.Benchmark
             return realtimeData_;
         }
 
-        public Dictionary<string, string> GetResultData()
+        public override Dictionary<string, string> GetResultData()
         {
             Dictionary<string, string> resultDict = new Dictionary<string, string>();
 
-            if (deltaTimeList_.Count == 0)
+            if (DeltaTimeList.Count == 0)
             {
                 Debug.LogWarning($"[{MonitorName}]: No Data found");
                 return resultDict;
             }
             
             // Logic
-            float totalFrameTime = deltaTimeList_.Sum();
-            float avgFrameTime = totalFrameTime / deltaTimeList_.Count;
-            float maxFrameTime = deltaTimeList_.Max();
-            float minFrameTime = deltaTimeList_.Min();
+            float totalFrameTime = TotalDeltaTime;
+            float avgFrameTime = totalFrameTime / DeltaTimeList.Count;
+            float maxFrameTime = DeltaTimeList.Max();
+            float minFrameTime = DeltaTimeList.Min();
             float avgFps = 1.0f / avgFrameTime;
             
-            var sortedFrameTimes = deltaTimeList_.OrderBy(t => t).ToList();
+            var sortedFrameTimes = DeltaTimeList.OrderBy(t => t).ToList();
             int percentileIndex = Mathf.FloorToInt(sortedFrameTimes.Count * 0.99f);
             float p99FrameTime = sortedFrameTimes[percentileIndex];
             float onePercentLowFps = 1.0f / p99FrameTime;
@@ -117,27 +71,12 @@ namespace SWUtility.Benchmark
             // Result Dictionary
             resultDict[resultData_FPS_Avg_] = avgFps.ToString("F2");
             resultDict[resultData_FPS_Low_] = onePercentLowFps.ToString("F2");
-            resultDict[resultData_Frame_Total_] = deltaTimeList_.Count.ToString();
+            resultDict[resultData_Frame_Total_] = DeltaTimeList.Count.ToString();
             resultDict[resultData_FrameTime_Avg_] = (avgFrameTime * 1000).ToString("F2");
             resultDict[resultData_FrameTime_Max_] = (maxFrameTime * 1000).ToString("F2");
             resultDict[resultData_FrameTime_Min_] = (minFrameTime * 1000).ToString("F2");
             
             return resultDict;
-        }
-        
-        #endregion
-        
-        
-        #region Unity Event Functions
-
-        private void OnEnable()
-        {
-            Register();
-        }
-
-        private void OnDisable()
-        {
-            UnRegister();
         }
         
         #endregion

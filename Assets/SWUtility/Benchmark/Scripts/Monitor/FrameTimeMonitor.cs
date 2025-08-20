@@ -4,14 +4,10 @@ using System.Linq;
 
 namespace SWUtility.Benchmark
 {
-    public class FrameTimeMonitor : MonoBehaviour, IBenchmarkMonitor
+    public class FrameTimeMonitor : DeltaTimeMonitorBase
     {
-        public string MonitorName => "Frame Time Monitor";
-        public bool Started => started_;
+        public override string MonitorName => "Frame Time Monitor";
         
-        private List<float> deltaTimeList_ = new List<float>();
-        private Dictionary<string, string> realtimeData_ = new Dictionary<string, string>();
-
         #region Title String
         // Realtime Data Title
         private string realtimeData_FrameTime_ = "Current Frame Time (ms)";
@@ -23,54 +19,12 @@ namespace SWUtility.Benchmark
         private string resultData_FrameTime_Min_ = "Min Frame Time (ms)";
         #endregion
 
-        private bool started_ = false;
-        
-        private void Initialize()
-        {
-            deltaTimeList_.Clear();
-            realtimeData_.Clear();
-        }
-
-        private void Register()
-        {
-            if (BenchmarkManager.Instance == null)
-                return;
-            
-            BenchmarkManager.Instance.RegisterMonitor(this);
-        }
-
-        private void UnRegister()
-        {
-            if (BenchmarkManager.Instance == null)
-                return;
-            
-            BenchmarkManager.Instance.UnregisterMonitor(this);
-        }
+        private Dictionary<string, string> realtimeData_ = new Dictionary<string, string>();
         
         
-        #region IBenchmarkMonitor implementation
-        
-        public void OnStartMonitor()
-        {
-            Initialize();
-            
-            started_ = true;
-        }
+        #region DeltaTimeMonitorBase implementation
 
-        public void OnUpdateMonitor()
-        {
-            if (!started_)
-                return;
-            
-            deltaTimeList_.Add(Time.unscaledDeltaTime);
-        }
-
-        public void OnStopMonitor()
-        {
-            started_ = false;
-        }
-
-        public Dictionary<string, string> GetRealtimeData()
+        public override Dictionary<string, string> GetRealtimeData()
         {
             realtimeData_.Clear();
 
@@ -81,44 +35,29 @@ namespace SWUtility.Benchmark
             return realtimeData_;
         }
 
-        public Dictionary<string, string> GetResultData()
+        public override Dictionary<string, string> GetResultData()
         {
             Dictionary<string, string> resultDict = new Dictionary<string, string>();
 
-            if (deltaTimeList_.Count == 0)
+            if (DeltaTimeList.Count == 0)
             {
                 Debug.LogWarning($"[{MonitorName}]: No Data found");
                 return resultDict;
             }
             
             // Logic
-            float totalFrameTime = deltaTimeList_.Sum();
-            float avgFrameTime = totalFrameTime / deltaTimeList_.Count;
-            float maxFrameTime = deltaTimeList_.Max();
-            float minFrameTime = deltaTimeList_.Min();
+            float totalFrameTime = TotalDeltaTime;
+            float avgFrameTime = totalFrameTime / DeltaTimeList.Count;
+            float maxFrameTime = DeltaTimeList.Max();
+            float minFrameTime = DeltaTimeList.Min();
             
             // Result Dictionary
-            resultDict[resultData_Frame_Total_] = deltaTimeList_.Count.ToString();
+            resultDict[resultData_Frame_Total_] = DeltaTimeList.Count.ToString();
             resultDict[resultData_FrameTime_Avg_] = (avgFrameTime * 1000).ToString("F2");
             resultDict[resultData_FrameTime_Max_] = (maxFrameTime * 1000).ToString("F2");
             resultDict[resultData_FrameTime_Min_] = (minFrameTime * 1000).ToString("F2");
             
             return resultDict;
-        }
-        
-        #endregion
-        
-        
-        #region Unity Event Functions
-
-        private void OnEnable()
-        {
-            Register();
-        }
-
-        private void OnDisable()
-        {
-            UnRegister();
         }
         
         #endregion
