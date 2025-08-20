@@ -30,10 +30,15 @@ namespace SWUtility.Benchmark
 
             var currentFrameTime = Time.unscaledDeltaTime;
             var currentTotalFrameTime = TotalDeltaTime;
-            var currentAverageFrameTime = currentTotalFrameTime / DeltaTimeList.Count;
+
+            float currentAverageFrameTime = 0f;
+            if (FrameCount > 0)
+            {
+                currentAverageFrameTime = currentTotalFrameTime / FrameCount;
+            }
             
             var currentFPS = 1.0f / currentFrameTime;
-            var currentAverageFPS = 1.0f / currentAverageFrameTime;
+            var currentAverageFPS = (currentAverageFrameTime > 0) ? (1.0f / currentAverageFrameTime) : 0f;
             
             realtimeData_[realtimeData_FPS_] = currentFPS.ToString("F2");
             realtimeData_[realtimeData_FPS_Avg] = currentAverageFPS.ToString("F2");
@@ -45,7 +50,7 @@ namespace SWUtility.Benchmark
         {
             Dictionary<string, string> resultDict = new Dictionary<string, string>();
 
-            if (DeltaTimeList.Count == 0)
+            if (FrameCount == 0)
             {
                 Debug.LogWarning($"[{MonitorName}]: No Data found");
                 return resultDict;
@@ -53,7 +58,7 @@ namespace SWUtility.Benchmark
             
             // Logic
             float totalFrameTime = TotalDeltaTime;
-            float avgFrameTime = totalFrameTime / DeltaTimeList.Count;
+            float avgFrameTime = totalFrameTime / FrameCount;
             float avgFps = 1.0f / avgFrameTime;
             
             var sortedFrameTimes = DeltaTimeList.OrderBy(t => t).ToList();
@@ -64,7 +69,7 @@ namespace SWUtility.Benchmark
             // Result Dictionary
             resultDict[resultData_FPS_Avg_] = avgFps.ToString("F2");
             resultDict[resultData_FPS_Low_] = onePercentLowFps.ToString("F2");
-            resultDict[resultData_Frame_Total_] = DeltaTimeList.Count.ToString();
+            resultDict[resultData_Frame_Total_] = FrameCount.ToString();
             
             return resultDict;
         }

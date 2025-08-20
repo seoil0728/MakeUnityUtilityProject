@@ -39,7 +39,7 @@ namespace SWUtility.Benchmark
         {
             Dictionary<string, string> resultDict = new Dictionary<string, string>();
 
-            if (DeltaTimeList.Count == 0)
+            if (FrameCount == 0)
             {
                 Debug.LogWarning($"[{MonitorName}]: No Data found");
                 return resultDict;
@@ -47,12 +47,12 @@ namespace SWUtility.Benchmark
             
             // Logic
             float totalFrameTime = TotalDeltaTime;
-            float avgFrameTime = totalFrameTime / DeltaTimeList.Count;
+            float avgFrameTime = totalFrameTime / FrameCount;
             float maxFrameTime = DeltaTimeList.Max();
             float minFrameTime = DeltaTimeList.Min();
             
             // Result Dictionary
-            resultDict[resultData_Frame_Total_] = DeltaTimeList.Count.ToString();
+            resultDict[resultData_Frame_Total_] = FrameCount.ToString();
             resultDict[resultData_FrameTime_Avg_] = (avgFrameTime * 1000).ToString("F2");
             resultDict[resultData_FrameTime_Max_] = (maxFrameTime * 1000).ToString("F2");
             resultDict[resultData_FrameTime_Min_] = (minFrameTime * 1000).ToString("F2");
