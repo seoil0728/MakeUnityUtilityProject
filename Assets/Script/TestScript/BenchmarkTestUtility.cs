@@ -16,6 +16,9 @@ public class BenchmarkTestUtility : MonoBehaviour
             return;
 
         BenchmarkManager.Instance.Initialize();
+        
+        ConsolePrintHandler consolePrintHandler = new ConsolePrintHandler();
+        BenchmarkManager.Instance.OnBenchmarkCompleted += consolePrintHandler.OnPrintResults;
         isValid_ = true;
     }
 

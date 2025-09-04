@@ -83,12 +83,7 @@ namespace SWUtility.Benchmark
         public System.Action<IReadOnlyDictionary<string, Dictionary<string, string>>> OnBenchmarkCompleted;
         #endregion
 
-        #region Handlers
-        public IBenchmarkResultPrintHandler PrintHandler { get; set; }
-        public IBenchmarkResultSaveLoadHandler SaveLoadHandler { get; set; }
-        #endregion
-
-
+        [ContextMenu("Initialize")]
         public void Initialize()
         {
             if (isInitialized_)
@@ -169,43 +164,6 @@ namespace SWUtility.Benchmark
             Debug.Log("Benchmark stopped.");
             isBenchmarking_ = false;
         }
-
-
-        public void PrintCurrentResult()
-        {
-            if (PrintHandler == null)
-            {
-                Debug.LogWarning("PrintHandler is not set. Cannot print results.");
-                return;
-            }
-
-            PrintHandler.OnPrintResults(allResultData_);
-        }
-
-        public void SaveResultsToJson(string path)
-        {
-            if (SaveLoadHandler == null)
-            {
-                Debug.LogWarning("SaveLoadHandler is not set. Cannot save results.");
-                return;
-            }
-
-            SaveLoadHandler.SaveResults(allResultData_, path);
-        }
-
-        public void LoadResultsFromJson(string path)
-        {
-            if (SaveLoadHandler == null)
-            {
-                Debug.LogWarning("SaveLoadHandler is not set. Cannot load results.");
-                return;
-            }
-
-            var loadedResults = SaveLoadHandler.LoadResults(path);
-            
-            // TODO: 벤치마크 결과를 로드한 후 처리하는 로직
-        }
-
 
         /// <summary>
         /// 벤치마크 측정 중에 매 프레임 갱신되는 데이터를 업데이트합니다.
