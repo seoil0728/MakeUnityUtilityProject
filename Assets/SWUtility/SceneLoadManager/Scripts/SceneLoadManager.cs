@@ -1,18 +1,21 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace SWUtility.SceneLoadManager
 {
-    public class SceneLoadManager : GlobalSingleton<SceneLoadManager>
+    public class SceneLoadManager : SWUtility.Singleton.GlobalSingleton<SceneLoadManager>
     {
         private MainSceneRoot currentMainSceneRoot;
+        
+        // 현재 띄워져 있는 Additive 씬들을 추적하여 Pause 상태 관리에 사용
+        private List<AdditiveSceneRoot> activeAdditiveScenes = new List<AdditiveSceneRoot>();
 
         public override void Initialize()
         {
             if (IsInitialized) return;
 
-            // Boot 씬에서 시작했을 때, 현재 씬의 Root를 찾아 최초 1회 Init 실행
             currentMainSceneRoot = FindSceneRootInActiveScene<MainSceneRoot>();
             if (currentMainSceneRoot != null)
             {
@@ -25,38 +28,33 @@ namespace SWUtility.SceneLoadManager
         // ==========================================
         // --- 메인 씬 (Single Load) ---
         // ==========================================
-        public void LoadMainScene(string sceneName)
+        public void LoadMainScene(string sceneName, object payload = null)
         {
-            StartCoroutine(LoadMainSceneRoutine(sceneName));
+            StartCoroutine(LoadMainSceneRoutine(sceneName, payload));
         }
 
-        private IEnumerator LoadMainSceneRoutine(string sceneName)
+        private IEnumerator LoadMainSceneRoutine(string sceneName, object payload)
         {
-            // 1. 기존 씬의 UnInit 호출 및 대기 (코루틴이 끝날 때까지 기다림)
             if (currentMainSceneRoot != null)
             {
                 yield return StartCoroutine(currentMainSceneRoot.UnInitRoutine());
                 currentMainSceneRoot = null;
             }
 
-            // 2. 비동기 씬 로드
-            AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
-            
-            // (선택) 로딩이 90%에서 멈추게 하여 로딩 스크린 연출을 넣을 수 있는 옵션
-            // asyncLoad.allowSceneActivation = false;
-            // while (asyncLoad.progress < 0.9f) { yield return null; }
-            // asyncLoad.allowSceneActivation = true;
+            // 기존에 떠있던 Additive 씬 목록 초기화 (Single 로드 시 모두 닫히므로)
+            activeAdditiveScenes.Clear();
 
+            AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Single);
             yield return new WaitUntil(() => asyncLoad.isDone);
 
-            // 3. 새로운 씬의 SceneRoot 탐색
             currentMainSceneRoot = FindSceneRootInActiveScene<MainSceneRoot>();
 
-            // 4. 새로운 씬의 Init 호출 및 대기
             if (currentMainSceneRoot != null)
             {
-                yield return StartCoroutine(currentMainSceneRoot.InitRoutine());
+                // InitRoutine 실행 전 Payload 전달
+                currentMainSceneRoot.SetupContext(payload);
 
+                yield return StartCoroutine(currentMainSceneRoot.InitRoutine());
                 currentMainSceneRoot.OnSceneReady();
             }
             else
@@ -78,13 +76,25 @@ namespace SWUtility.SceneLoadManager
             AsyncOperation asyncLoad = SceneManager.LoadSceneAsync(sceneName, LoadSceneMode.Additive);
             yield return new WaitUntil(() => asyncLoad.isDone);
 
-            // 로드된 Additive 씬을 이름으로 찾아 해당 씬 안에서만 탐색
             Scene loadedScene = SceneManager.GetSceneByName(sceneName);
             AdditiveSceneRoot additiveRoot = FindSceneRootInScene<AdditiveSceneRoot>(loadedScene);
 
             if (additiveRoot != null)
             {
+                // Main 씬 주입
+                additiveRoot.InjectMainScene(currentMainSceneRoot);
+                
+                // Additive 씬 목록에 추가
+                activeAdditiveScenes.Add(additiveRoot);
+
+                // Pause 로직 처리 (자신이 메인 씬을 일시정지시켜야 한다면)
+                if (additiveRoot.ShouldPauseMainScene && currentMainSceneRoot != null)
+                {
+                    currentMainSceneRoot.OnPause();
+                }
+
                 yield return StartCoroutine(additiveRoot.InitRoutine());
+                additiveRoot.OnSceneReady(); // Additive 씬도 준비 완료 콜백 호출
             }
         }
 
@@ -103,13 +113,41 @@ namespace SWUtility.SceneLoadManager
                 if (additiveRoot != null)
                 {
                     yield return StartCoroutine(additiveRoot.UnInitRoutine());
+                    
+                    // 목록에서 제거 및 Resume 로직 재평가
+                    activeAdditiveScenes.Remove(additiveRoot);
+                    UpdateMainScenePauseState();
                 }
                 yield return SceneManager.UnloadSceneAsync(sceneName);
             }
         }
+        
+        private void UpdateMainScenePauseState()
+        {
+            if (currentMainSceneRoot == null) return;
+
+            bool shouldBePaused = false;
+            foreach (var additive in activeAdditiveScenes)
+            {
+                if (additive.ShouldPauseMainScene)
+                {
+                    shouldBePaused = true;
+                    break;
+                }
+            }
+
+            if (shouldBePaused)
+            {
+                currentMainSceneRoot.OnPause();
+            }
+            else
+            {
+                currentMainSceneRoot.OnResume();
+            }
+        }
 
         // ==========================================
-        // --- 최상단 오브젝트 탐색 최적화 (GetRootGameObjects) ---
+        // --- 최상단 오브젝트 탐색 최적화 ---
         // ==========================================
         private T FindSceneRootInActiveScene<T>() where T : SceneRoot
         {
@@ -120,7 +158,6 @@ namespace SWUtility.SceneLoadManager
         {
             if (!targetScene.IsValid() || !targetScene.isLoaded) return null;
 
-            // 씬 내의 '최상단 게임오브젝트'들만 배열로 가져와 검사 (성능 최적화)
             GameObject[] rootObjects = targetScene.GetRootGameObjects();
             foreach (GameObject go in rootObjects)
             {
@@ -134,4 +171,3 @@ namespace SWUtility.SceneLoadManager
         }
     }
 }
-
