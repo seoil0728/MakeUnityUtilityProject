@@ -8,7 +8,7 @@
   - 현재 언어 설정에 맞춰 텍스트(TextMeshPro 등) 및 이미지를 동적으로 변경하는 기능.
   - 에디터 상에서 쉽게 번역 키를 적용할 수 있는 헬퍼 컴포넌트 제공.
 
-- [ ] **SettingManager (환경 설정 매니저) 개발**
+- [x] **SettingManager (환경 설정 매니저) 개발**
   - 해상도, 그래픽 품질, 게임 플레이 옵션 등을 관리하고 저장/불러오기(Save/Load) 하는 기능.
   - JSON 직렬화(Serialization)를 통한 로컬 데이터 저장 방식 적용.
   - `SoundManager` 및 `UIManager` 등 타 매니저와의 연동 구조 마련.
