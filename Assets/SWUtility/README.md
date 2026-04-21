@@ -29,3 +29,7 @@
 ## 6. InputManager (`SWUtility.InputManager`)
 New Input System을 사용하면서도 레거시 Input과 100% 동일한 사용감을 제공하는 직관적인 래퍼(Wrapper) 시스템입니다. 액션 맵 스위칭(모드 전환)을 강력하게 지원합니다.
 👉 **상세 메뉴얼:** [Manual_InputManager.md](Manual_InputManager.md)
+
+## 7. LocalizationManager (`SWUtility.Localization`)
+CSV 기반의 다국어 데이터 관리 및 실시간 언어 변경 기능을 제공하는 시스템입니다. TextMeshPro와 연동하여 코드 없이 다국어 UI를 구축할 수 있습니다.
+👉 **상세 메뉴얼:** [Manual_LocalizationManager.md](Manual_LocalizationManager.md)
