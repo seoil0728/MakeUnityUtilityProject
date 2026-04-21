@@ -14,7 +14,7 @@
   - `SoundManager` 및 `UIManager` 등 타 매니저와의 연동 구조 마련.
 
 ## 🚀 기존 매니저 개선
-- [ ] **SoundManager 업그레이드 (Audio Mixer 연동)**
+- [x] **SoundManager 업그레이드 (Audio Mixer 연동)**
   - 기존의 단순 `AudioSource.volume` 제어 방식에서 벗어나, Unity의 **Audio Mixer**를 통한 그룹별(Master, BGM, SFX) 볼륨 제어 기능 추가.
   - `SettingManager`와 연동하여 옵션 창의 슬라이더 조작 시 실시간으로 Audio Mixer 볼륨이 조절되도록 구현.
   - 음소거(Mute) 기능 및 볼륨 저장 기능 연동.

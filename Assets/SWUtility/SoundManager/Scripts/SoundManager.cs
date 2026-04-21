@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Audio;
 using SWUtility.Singleton;
 using SWUtility.ObjectPool;
 
@@ -10,13 +11,26 @@ namespace SWUtility.SoundManager
     // GlobalSingleton을 상속받아 씬에 없어도 Resources 폴더에서 알아서 프리팹을 찾아 스폰합니다.
     public class SoundManager : GlobalSingleton<SoundManager>
     {
-        [Header("2D Sound Settings (Enum)")]
-        [SerializeField] private float masterBgmVolume = 0.5f;
-        [SerializeField] private float masterUIVolume = 1.0f;
+        [Header("Audio Mixer (Optional)")]
+        [Tooltip("Audio Mixer 그룹을 할당하면 믹서를 통해 볼륨이 조절됩니다. 비워두면 AudioSource.volume 방식으로 동작합니다.")]
+        public AudioMixerGroup bgmMixerGroup;
+        public AudioMixerGroup uiSfxMixerGroup;
+        public AudioMixerGroup sfxMixerGroup;
+
+        [Tooltip("Audio Mixer에 노출(Exposed)시킨 파라미터 이름")]
+        public string bgmVolumeParam = "BGM_Vol";
+        public string uiSfxVolumeParam = "UI_Vol";
+        public string sfxVolumeParam = "SFX_Vol";
+
+        [Header("Master Volumes (Logical)")]
+        [Range(0f, 1f)] public float masterBgmVolume = 1.0f;
+        [Range(0f, 1f)] public float masterUIVolume = 1.0f;
+        [Range(0f, 1f)] public float masterSfxVolume = 1.0f;
 
         [Serializable] public struct BGMSetup { public BGMType type; public AudioClip clip; }
         [Serializable] public struct UISFXSetup { public UISFXType type; public AudioClip clip; }
 
+        [Header("2D Sound Settings (Enum)")]
         [SerializeField] private BGMSetup[] bgmSetups;
         [SerializeField] private UISFXSetup[] uiSfxSetups;
 
@@ -32,7 +46,6 @@ namespace SWUtility.SoundManager
         [Header("3D Sound Settings (Object Pool)")]
         [Tooltip("3D 사운드를 재생할 때 원본으로 복사될 오디오 소스 프리팹입니다.")]
         [SerializeField] private AudioSource audioSourcePrefab;
-
 
         public override void Initialize()
         {
@@ -50,14 +63,68 @@ namespace SWUtility.SoundManager
                 bgmSources[i].playOnAwake = false;
                 bgmSources[i].spatialBlend = 0f; // 완벽한 2D
                 bgmSources[i].volume = 0f;
+                if (bgmMixerGroup != null) bgmSources[i].outputAudioMixerGroup = bgmMixerGroup;
             }
 
             // 3. 2D UI 소스 동적 생성
             uiSfxSource = gameObject.AddComponent<AudioSource>();
             uiSfxSource.playOnAwake = false;
             uiSfxSource.spatialBlend = 0f;
+            if (uiSfxMixerGroup != null) uiSfxSource.outputAudioMixerGroup = uiSfxMixerGroup;
             
             base.Initialize();
+
+            // 초기 볼륨 적용
+            SetBgmVolume(masterBgmVolume);
+            SetUIVolume(masterUIVolume);
+            SetSfxVolume(masterSfxVolume);
+        }
+
+        // ==========================================
+        // --- 볼륨 조절 API ---
+        // ==========================================
+        public void SetBgmVolume(float volume)
+        {
+            masterBgmVolume = Mathf.Clamp01(volume);
+            
+            if (bgmMixerGroup != null && bgmMixerGroup.audioMixer != null)
+            {
+                float dB = masterBgmVolume > 0.0001f ? Mathf.Log10(masterBgmVolume) * 20f : -80f;
+                bgmMixerGroup.audioMixer.SetFloat(bgmVolumeParam, dB);
+            }
+            else
+            {
+                if (bgmSources != null && bgmSources[activeBgmIndex] != null)
+                {
+                    // 페이드 중이 아니라면 즉시 적용
+                    if (bgmFadeCoroutine == null)
+                    {
+                        bgmSources[activeBgmIndex].volume = masterBgmVolume;
+                    }
+                }
+            }
+        }
+
+        public void SetUIVolume(float volume)
+        {
+            masterUIVolume = Mathf.Clamp01(volume);
+            
+            if (uiSfxMixerGroup != null && uiSfxMixerGroup.audioMixer != null)
+            {
+                float dB = masterUIVolume > 0.0001f ? Mathf.Log10(masterUIVolume) * 20f : -80f;
+                uiSfxMixerGroup.audioMixer.SetFloat(uiSfxVolumeParam, dB);
+            }
+        }
+
+        public void SetSfxVolume(float volume)
+        {
+            masterSfxVolume = Mathf.Clamp01(volume);
+            
+            if (sfxMixerGroup != null && sfxMixerGroup.audioMixer != null)
+            {
+                float dB = masterSfxVolume > 0.0001f ? Mathf.Log10(masterSfxVolume) * 20f : -80f;
+                sfxMixerGroup.audioMixer.SetFloat(sfxVolumeParam, dB);
+            }
         }
 
         // ==========================================
@@ -83,17 +150,20 @@ namespace SWUtility.SoundManager
 
             float currentTime = 0f;
             float startFadeOutVol = fadeOutSrc.volume;
+            
+            // 믹서 사용 시 실제 AudioSource의 볼륨은 1.0을 목표로 하고, 미사용 시 masterBgmVolume을 목표로 합니다.
+            float targetVolume = (bgmMixerGroup != null) ? 1.0f : masterBgmVolume;
 
             while (currentTime < duration)
             {
                 currentTime += Time.deltaTime;
                 fadeOutSrc.volume = Mathf.Lerp(startFadeOutVol, 0f, currentTime / duration);
-                fadeInSrc.volume = Mathf.Lerp(0f, masterBgmVolume, currentTime / duration);
+                fadeInSrc.volume = Mathf.Lerp(0f, targetVolume, currentTime / duration);
                 yield return null;
             }
 
             fadeOutSrc.Stop();
-            fadeInSrc.volume = masterBgmVolume;
+            fadeInSrc.volume = targetVolume;
             bgmFadeCoroutine = null;
         }
 
@@ -104,7 +174,8 @@ namespace SWUtility.SoundManager
         {
             if (type == UISFXType.None || !uiSfxDict.TryGetValue(type, out AudioClip clip)) return;
             
-            uiSfxSource.PlayOneShot(clip, masterUIVolume);
+            float playVolume = (uiSfxMixerGroup != null) ? 1.0f : masterUIVolume;
+            uiSfxSource.PlayOneShot(clip, playVolume);
         }
 
         // ==========================================
@@ -114,7 +185,6 @@ namespace SWUtility.SoundManager
         {
             if (soundData == null || audioSourcePrefab == null) return;
             
-            // 이전 단계에서 수정한 GetClip() 호출 (랜덤 혹은 순차 재생)
             AudioClip clip = soundData.GetClip(); 
             if (clip == null) return;
 
@@ -128,7 +198,18 @@ namespace SWUtility.SoundManager
 
             // 2. SO 데이터를 바탕으로 AudioSource 설정 세팅
             source.clip = clip;
-            source.volume = soundData.volume;
+            
+            if (sfxMixerGroup != null)
+            {
+                source.outputAudioMixerGroup = sfxMixerGroup;
+                source.volume = soundData.volume; // SO 자체 볼륨만 적용, 마스터 볼륨은 믹서가 제어
+            }
+            else
+            {
+                source.outputAudioMixerGroup = null;
+                source.volume = soundData.volume * masterSfxVolume; // SO 볼륨에 마스터 볼륨을 곱함
+            }
+            
             source.pitch = soundData.GetRandomPitch();
             source.spatialBlend = 1.0f; // 3D 사운드
             source.maxDistance = soundData.maxDistance;
